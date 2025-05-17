@@ -7,6 +7,8 @@
 
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-minimap@3.6.1/dist/Control.MiniMap.min.js"></script>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-minimap@3.6.1/dist/Control.MiniMap.min.css" />
 
   <style>
     html, body { height: 100%; margin: 0; }
@@ -27,18 +29,55 @@
     .legend img.active {
       display: block;
     }
+    .opacity-control {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: white;
+      padding: 8px;
+      z-index: 1000;
+      border: 1px solid #ccc;
+    }
+    .opacity-control label {
+      font-size: 14px;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
+
+  <!-- Leyendas -->
   <div class="legend">
     <img id="legend-ndvi" src="leyenda-ndvi.png" alt="Leyenda NDVI">
     <img id="legend-rend" src="leyenda-rend.png" alt="Leyenda Rendimiento">
   </div>
 
-  <script>
-    const map = L.map('map').setView([25.8, -108.9], 12); // Ajusta si es necesario
+  <!-- Control de opacidad -->
+  <div class="opacity-control">
+    <label for="opacityRange">Opacidad: <span id="opacityValue">0.8</span></label><br>
+    <input type="range" id="opacityRange" min="0" max="1" step="0.1" value="0.8">
+  </div>
 
+  <script>
+    const map = L.map('map').setView([25.8, -108.9], 12);
+
+    // Capas base
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: 'OpenStreetMap'
+    }).addTo(map);
+
+    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri World Imagery'
+    });
+
+    const esriTerrain = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Esri Topo'
+    });
+
+    // Capas temáticas
     const ndvi = L.tileLayer('./NDVI/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: 'NDVI',
@@ -51,33 +90,59 @@
       opacity: 0.8
     });
 
-    // Capa base activa por defecto
-    ndvi.addTo(map);
+    ndvi.addTo(map); // Activa por defecto
 
     const baseMaps = {
-      "NDVI": ndvi,
-      "Rendimiento": rendimiento
+      "🗺️ Calles (OSM)": osm,
+      "🛰️ Satélite (ESRI)": esriSat,
+      "🗻 Terreno (ESRI)": esriTerrain
     };
 
-    const controlLayers = L.control.layers(baseMaps).addTo(map);
+    const overlayMaps = {
+      "🌿 NDVI": ndvi,
+      "🌾 Rendimiento": rendimiento
+    };
 
-    // Función para mostrar leyenda correspondiente
+    L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+    // Leyenda dinámica
     function updateLegend(layerName) {
       document.getElementById('legend-ndvi').classList.remove('active');
       document.getElementById('legend-rend').classList.remove('active');
-
-      if (layerName === 'NDVI') {
+      if (layerName.includes('NDVI')) {
         document.getElementById('legend-ndvi').classList.add('active');
-      } else if (layerName === 'Rendimiento') {
+      } else if (layerName.includes('Rendimiento')) {
         document.getElementById('legend-rend').classList.add('active');
       }
     }
 
-    updateLegend('NDVI'); // Inicial
+    updateLegend("NDVI");
 
-    map.on('baselayerchange', function(e) {
+    map.on('overlayadd', function(e) {
       updateLegend(e.name);
     });
+
+    map.on('overlayremove', function() {
+      updateLegend(""); // Oculta leyenda si ninguna está activa
+    });
+
+    // Control de opacidad
+    const opacitySlider = document.getElementById('opacityRange');
+    const opacityValue = document.getElementById('opacityValue');
+
+    opacitySlider.addEventListener('input', function () {
+      const value = parseFloat(opacitySlider.value);
+      ndvi.setOpacity(value);
+      rendimiento.setOpacity(value);
+      opacityValue.textContent = value;
+    });
+
+    // MiniMap
+    const miniMap = new L.Control.MiniMap(osm, {
+      toggleDisplay: true,
+      minimized: false,
+      position: "bottomright"
+    }).addTo(map);
   </script>
 </body>
 </html>

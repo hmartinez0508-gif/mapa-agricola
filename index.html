@@ -11,28 +11,73 @@
   <style>
     html, body { height: 100%; margin: 0; }
     #map { height: 100%; }
+    .legend {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: white;
+      padding: 10px;
+      border: 1px solid #ccc;
+      z-index: 1000;
+    }
+    .legend img {
+      width: 150px;
+      display: none;
+    }
+    .legend img.active {
+      display: block;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div class="legend">
+    <img id="legend-ndvi" src="leyenda-ndvi.png" alt="Leyenda NDVI">
+    <img id="legend-rend" src="leyenda-rend.png" alt="Leyenda Rendimiento">
+  </div>
 
   <script>
-    const map = L.map('map').setView([25.8, -108.9], 12); // Coordenadas de Sinaloa, ajusta si es necesario
+    const map = L.map('map').setView([25.8, -108.9], 12); // Ajusta si es necesario
 
     const ndvi = L.tileLayer('./NDVI/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: 'NDVI'
-    }).addTo(map);
+      attribution: 'NDVI',
+      opacity: 0.8
+    });
 
     const rendimiento = L.tileLayer('./RENDIMIENTO/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: 'Rendimiento'
+      attribution: 'Rendimiento',
+      opacity: 0.8
     });
 
-    L.control.layers({
+    // Capa base activa por defecto
+    ndvi.addTo(map);
+
+    const baseMaps = {
       "NDVI": ndvi,
       "Rendimiento": rendimiento
-    }).addTo(map);
+    };
+
+    const controlLayers = L.control.layers(baseMaps).addTo(map);
+
+    // Función para mostrar leyenda correspondiente
+    function updateLegend(layerName) {
+      document.getElementById('legend-ndvi').classList.remove('active');
+      document.getElementById('legend-rend').classList.remove('active');
+
+      if (layerName === 'NDVI') {
+        document.getElementById('legend-ndvi').classList.add('active');
+      } else if (layerName === 'Rendimiento') {
+        document.getElementById('legend-rend').classList.add('active');
+      }
+    }
+
+    updateLegend('NDVI'); // Inicial
+
+    map.on('baselayerchange', function(e) {
+      updateLegend(e.name);
+    });
   </script>
 </body>
 </html>

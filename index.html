@@ -219,4 +219,32 @@
     map.on('overlayremove', function(e) {
       if (e.name.includes('Rendimiento')) {
         document.getElementById('dynamic-legend-rend').style.display = 'none';
-        document.getElementById('legend-rend').
+        document.getElementById('legend-rend').classList.add('active');
+      }
+
+      if (e.name.includes('NDVI')) {
+        document.getElementById('dynamic-legend-ndvi').style.display = 'none';
+        document.getElementById('legend-ndvi').classList.add('active');
+      }
+    });
+
+    // Control de opacidad
+    const opacitySlider = document.getElementById('opacityRange');
+    const opacityValue = document.getElementById('opacityValue');
+
+    opacitySlider.addEventListener('input', function () {
+      const value = parseFloat(opacitySlider.value);
+      ndvi.setOpacity(value);
+      rendimiento.setOpacity(value);
+      opacityValue.textContent = value;
+    });
+
+    // MiniMap
+    const miniMap = new L.Control.MiniMap(osm, {
+      toggleDisplay: true,
+      minimized: false,
+      position: "bottomright"
+    }).addTo(map);
+  </script>
+</body>
+</html>

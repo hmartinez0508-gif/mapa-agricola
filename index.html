@@ -13,6 +13,7 @@
   <style>
     html, body { height: 100%; margin: 0; }
     #map { height: 100%; }
+
     .legend {
       position: absolute;
       bottom: 10px;
@@ -29,10 +30,40 @@
     .legend img.active {
       display: block;
     }
+
+    .legend-dynamic {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      background: white;
+      padding: 10px 15px;
+      border: 1px solid #ccc;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      z-index: 1000;
+      display: none;
+    }
+    .legend-dynamic .title {
+      font-weight: bold;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .legend-dynamic .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .legend-dynamic .color-box {
+      width: 20px;
+      height: 20px;
+      margin-right: 6px;
+      border: 1px solid #999;
+    }
+
     .opacity-control {
       position: absolute;
-      top: 10px;
-      left: 10px;
+      top: 10px; 
+      left: 60px; /* Desplazado 2cm hacia la derecha */
       background: white;
       padding: 8px;
       z-index: 1000;
@@ -46,11 +77,14 @@
 <body>
   <div id="map"></div>
 
-  <!-- Leyendas -->
+  <!-- Leyenda estática -->
   <div class="legend">
     <img id="legend-ndvi" src="leyenda-ndvi.png" alt="Leyenda NDVI">
     <img id="legend-rend" src="leyenda-rend.png" alt="Leyenda Rendimiento">
   </div>
+
+  <!-- Leyenda dinámica -->
+  <div id="dynamic-legend" class="legend-dynamic"></div>
 
   <!-- Control de opacidad -->
   <div class="opacity-control">
@@ -105,7 +139,7 @@
 
     L.control.layers(baseMaps, overlayMaps).addTo(map);
 
-    // Leyenda dinámica
+    // Control de leyenda estática
     function updateLegend(layerName) {
       document.getElementById('legend-ndvi').classList.remove('active');
       document.getElementById('legend-rend').classList.remove('active');
@@ -118,12 +152,61 @@
 
     updateLegend("NDVI");
 
+    // Leyenda dinámica
+    const palette = ['#ffffcc', '#a1dab4', '#41b6c4', '#2c7fb8', '#253494'];
+    const minVal = 5;
+    const maxVal = 10;
+
+    function createLegend(containerId, title, palette, minVal, maxVal) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+
+      const numClasses = palette.length;
+      const step = (maxVal - minVal) / numClasses;
+
+      const titleElem = document.createElement('div');
+      titleElem.className = 'title';
+      titleElem.textContent = title;
+      container.appendChild(titleElem);
+
+      for (let i = 0; i < numClasses; i++) {
+        const rangeMin = (minVal + i * step).toFixed(1);
+        const rangeMax = (minVal + (i + 1) * step).toFixed(1);
+        const label = `${rangeMin} - ${rangeMax}`;
+
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+
+        const colorBox = document.createElement('div');
+        colorBox.className = 'color-box';
+        colorBox.style.backgroundColor = palette[i];
+
+        const text = document.createElement('span');
+        text.textContent = label;
+
+        item.appendChild(colorBox);
+        item.appendChild(text);
+        container.appendChild(item);
+      }
+    }
+
     map.on('overlayadd', function(e) {
       updateLegend(e.name);
+
+      if (e.name.includes('Rendimiento')) {
+        document.getElementById('dynamic-legend').style.display = 'block';
+        createLegend('dynamic-legend', 'Rendimiento estimado (ton/ha)', palette, minVal, maxVal);
+        document.getElementById('legend-rend').classList.remove('active');
+      }
     });
 
-    map.on('overlayremove', function() {
-      updateLegend(""); // Oculta leyenda si ninguna está activa
+    map.on('overlayremove', function(e) {
+      updateLegend(""); // Oculta imagen si no hay activa
+
+      if (e.name.includes('Rendimiento')) {
+        document.getElementById('dynamic-legend').style.display = 'none';
+        document.getElementById('legend-rend').classList.add('active');
+      }
     });
 
     // Control de opacidad

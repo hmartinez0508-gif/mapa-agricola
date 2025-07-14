@@ -50,8 +50,21 @@
       font-size: 14px;
     }
     .legend-dynamic img {
-      width: 180px;
+      width: 120px;
+      height: auto;
+      display: block;
       margin-top: 5px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .color-box {
+      width: 20px;
+      height: 20px;
+      margin-right: 6px;
+      border: 1px solid #999;
     }
 
     .opacity-control {
@@ -71,19 +84,18 @@
 <body>
   <div id="map"></div>
 
-  <!-- Leyenda estática (solo rendimiento) -->
+  <!-- Leyenda estática solo para rendimiento -->
   <div class="legend">
-    <!-- Imagen del NDVI se controla dinámicamente -->
     <img id="legend-rend" src="leyenda-rend.png" alt="Leyenda Rendimiento">
   </div>
 
-  <!-- Leyenda dinámica del NDVI (con imagen .jpg) -->
+  <!-- Leyenda dinámica del NDVI con imagen -->
   <div id="dynamic-legend-ndvi" class="legend-dynamic">
     <div class="title">Índice de Vegetación NDVI (-1 a 1)</div>
     <img src="leyenda-ndvi.jpg" alt="Leyenda NDVI">
   </div>
 
-  <!-- Leyenda dinámica del rendimiento (opcional) -->
+  <!-- Leyenda dinámica de rendimiento -->
   <div id="dynamic-legend-rend" class="legend-dynamic"></div>
 
   <!-- Control de opacidad -->
@@ -124,7 +136,7 @@
       opacity: 0.8
     });
 
-    ndvi.addTo(map); // Activar NDVI por defecto
+    ndvi.addTo(map); // NDVI activo por defecto
 
     const baseMaps = {
       "🗺️ Calles (OSM)": osm,
@@ -139,31 +151,10 @@
 
     L.control.layers(baseMaps, overlayMaps).addTo(map);
 
-    // Leyenda activa inicial
+    // Mostrar leyenda NDVI al iniciar
     document.getElementById('dynamic-legend-ndvi').style.display = 'block';
 
-    map.on('overlayadd', function(e) {
-      if (e.name.includes('NDVI')) {
-        document.getElementById('dynamic-legend-ndvi').style.display = 'block';
-      }
-      if (e.name.includes('Rendimiento')) {
-        document.getElementById('dynamic-legend-rend').style.display = 'block';
-        document.getElementById('legend-rend').classList.remove('active');
-        createLegend('dynamic-legend-rend', 'Rendimiento estimado (ton/ha)', rendPalette, rendMin, rendMax);
-      }
-    });
-
-    map.on('overlayremove', function(e) {
-      if (e.name.includes('NDVI')) {
-        document.getElementById('dynamic-legend-ndvi').style.display = 'none';
-      }
-      if (e.name.includes('Rendimiento')) {
-        document.getElementById('dynamic-legend-rend').style.display = 'none';
-        document.getElementById('legend-rend').classList.add('active');
-      }
-    });
-
-    // Función para crear leyenda dinámica de rendimiento
+    // Leyendas dinámicas
     const rendPalette = ['#ffffcc', '#a1dab4', '#41b6c4', '#2c7fb8', '#253494'];
     const rendMin = 5;
     const rendMax = 10;
@@ -200,6 +191,30 @@
         container.appendChild(item);
       }
     }
+
+    // Eventos de capas
+    map.on('overlayadd', function(e) {
+      if (e.name.includes('NDVI')) {
+        document.getElementById('dynamic-legend-ndvi').style.display = 'block';
+      }
+
+      if (e.name.includes('Rendimiento')) {
+        document.getElementById('dynamic-legend-rend').style.display = 'block';
+        document.getElementById('legend-rend').classList.remove('active');
+        createLegend('dynamic-legend-rend', 'Rendimiento estimado (ton/ha)', rendPalette, rendMin, rendMax);
+      }
+    });
+
+    map.on('overlayremove', function(e) {
+      if (e.name.includes('NDVI')) {
+        document.getElementById('dynamic-legend-ndvi').style.display = 'none';
+      }
+
+      if (e.name.includes('Rendimiento')) {
+        document.getElementById('dynamic-legend-rend').style.display = 'none';
+        document.getElementById('legend-rend').classList.add('active');
+      }
+    });
 
     // Control de opacidad
     const opacitySlider = document.getElementById('opacityRange');

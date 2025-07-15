@@ -15,15 +15,21 @@
     html, body { height: 100%; margin: 0; }
     #map { height: 100%; }
 
+    .legend, .legend-dynamic, .legend-parcelas {
+      background: white;
+      border: 1px solid #ccc;
+      padding: 10px 15px;
+      font-family: Arial, sans-serif;
+      font-size: 13px;
+      z-index: 1000;
+    }
+
     .legend {
       position: absolute;
       bottom: 10px;
       left: 10px;
-      background: white;
-      padding: 10px;
-      border: 1px solid #ccc;
-      z-index: 1000;
     }
+
     .legend img {
       width: 150px;
       display: none;
@@ -36,35 +42,40 @@
       position: absolute;
       bottom: 10px;
       right: 10px;
-      background: white;
-      padding: 10px 15px;
-      border: 1px solid #ccc;
-      font-family: Arial, sans-serif;
-      font-size: 13px;
-      z-index: 1000;
       display: none;
     }
-    .legend-dynamic .title {
+
+    .legend-dynamic .title,
+    .legend-parcelas .title {
       font-weight: bold;
       margin-bottom: 6px;
       font-size: 14px;
     }
+
     .legend-dynamic img {
       width: 120px;
       height: auto;
-      display: block;
       margin-top: 5px;
     }
+
     .legend-item {
       display: flex;
       align-items: center;
       margin-bottom: 4px;
     }
+
     .color-box {
       width: 20px;
       height: 20px;
       margin-right: 6px;
       border: 1px solid #999;
+    }
+
+    .legend-parcelas {
+      position: absolute;
+      bottom: 80px;
+      left: 10px;
+      display: none;
     }
 
     .opacity-control {
@@ -73,9 +84,10 @@
       left: 60px;
       background: white;
       padding: 8px;
-      z-index: 1000;
       border: 1px solid #ccc;
+      z-index: 1000;
     }
+
     .opacity-control label {
       font-size: 14px;
     }
@@ -84,19 +96,28 @@
 <body>
   <div id="map"></div>
 
-  <!-- Leyenda estática solo para rendimiento -->
+  <!-- Leyenda estática -->
   <div class="legend">
     <img id="legend-rend" src="leyenda-rend.png" alt="Leyenda Rendimiento">
   </div>
 
-  <!-- Leyenda dinámica del NDVI con imagen -->
+  <!-- Leyenda NDVI con imagen -->
   <div id="dynamic-legend-ndvi" class="legend-dynamic">
     <div class="title">Índice de Vegetación NDVI (-1 a 1)</div>
     <img src="leyenda-ndvi.jpg" alt="Leyenda NDVI">
   </div>
 
-  <!-- Leyenda dinámica de rendimiento -->
+  <!-- Leyenda dinámica rendimiento -->
   <div id="dynamic-legend-rend" class="legend-dynamic"></div>
+
+  <!-- Leyenda dinámica parcelas -->
+  <div id="legend-parcelas" class="legend-parcelas">
+    <div class="title">Predios PpB</div>
+    <div class="legend-item">
+      <div class="color-box" style="background-color: #00FFFF;"></div>
+      <span>Borde de parcela</span>
+    </div>
+  </div>
 
   <!-- Control de opacidad -->
   <div class="opacity-control">
@@ -108,34 +129,13 @@
     const map = L.map('map').setView([25.8, -108.9], 12);
 
     // Capas base
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: 'OpenStreetMap'
-    }).addTo(map);
-
-    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Esri World Imagery'
-    });
-
-    const esriTerrain = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-      maxZoom: 19,
-      attribution: 'Esri Topo'
-    });
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: 'OpenStreetMap' }).addTo(map);
+    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri World Imagery' });
+    const esriTerrain = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri Topo' });
 
     // Capas temáticas
-    const ndvi = L.tileLayer('./NDVI/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: 'NDVI',
-      opacity: 0.8
-    });
-
-    const rendimiento = L.tileLayer('./RENDIMIENTO/{z}/{x}/{y}.png', {
-      maxZoom: 18,
-      attribution: 'Rendimiento',
-      opacity: 0.8
-    });
-
+    const ndvi = L.tileLayer('./NDVI/{z}/{x}/{y}.png', { maxZoom: 18, attribution: 'NDVI', opacity: 0.8 });
+    const rendimiento = L.tileLayer('./RENDIMIENTO/{z}/{x}/{y}.png', { maxZoom: 18, attribution: 'Rendimiento', opacity: 0.8 });
     ndvi.addTo(map); // NDVI activo por defecto
 
     const baseMaps = {
@@ -149,12 +149,13 @@
       "🌾 Rendimiento": rendimiento
     };
 
-    L.control.layers(baseMaps, overlayMaps).addTo(map);
+    // Agregar control de capas (sin parcelas aún)
+    const layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
 
-    // Mostrar leyenda NDVI al iniciar
+    // Mostrar leyenda NDVI al cargar
     document.getElementById('dynamic-legend-ndvi').style.display = 'block';
 
-    // Leyendas dinámicas
+    // Leyenda dinámica de rendimiento
     const rendPalette = ['#ffffcc', '#a1dab4', '#41b6c4', '#2c7fb8', '#253494'];
     const rendMin = 5;
     const rendMax = 10;
@@ -162,7 +163,6 @@
     function createLegend(containerId, title, palette, minVal, maxVal) {
       const container = document.getElementById(containerId);
       container.innerHTML = '';
-
       const numClasses = palette.length;
       const step = (maxVal - minVal) / numClasses;
 
@@ -174,8 +174,6 @@
       for (let i = 0; i < numClasses; i++) {
         const rangeMin = (minVal + i * step).toFixed(2);
         const rangeMax = (minVal + (i + 1) * step).toFixed(2);
-        const label = `${rangeMin} – ${rangeMax}`;
-
         const item = document.createElement('div');
         item.className = 'legend-item';
 
@@ -183,25 +181,27 @@
         colorBox.className = 'color-box';
         colorBox.style.backgroundColor = palette[i];
 
-        const text = document.createElement('span');
-        text.textContent = label;
+        const label = document.createElement('span');
+        label.textContent = `${rangeMin} – ${rangeMax}`;
 
         item.appendChild(colorBox);
-        item.appendChild(text);
+        item.appendChild(label);
         container.appendChild(item);
       }
     }
 
-    // Eventos de capas
+    // Eventos de leyendas dinámicas
     map.on('overlayadd', function(e) {
       if (e.name.includes('NDVI')) {
         document.getElementById('dynamic-legend-ndvi').style.display = 'block';
       }
-
       if (e.name.includes('Rendimiento')) {
         document.getElementById('dynamic-legend-rend').style.display = 'block';
         document.getElementById('legend-rend').classList.remove('active');
         createLegend('dynamic-legend-rend', 'Rendimiento estimado (ton/ha)', rendPalette, rendMin, rendMax);
+      }
+      if (e.name.includes('Predios PpB')) {
+        document.getElementById('legend-parcelas').style.display = 'block';
       }
     });
 
@@ -209,10 +209,12 @@
       if (e.name.includes('NDVI')) {
         document.getElementById('dynamic-legend-ndvi').style.display = 'none';
       }
-
       if (e.name.includes('Rendimiento')) {
         document.getElementById('dynamic-legend-rend').style.display = 'none';
         document.getElementById('legend-rend').classList.add('active');
+      }
+      if (e.name.includes('Predios PpB')) {
+        document.getElementById('legend-parcelas').style.display = 'none';
       }
     });
 
@@ -233,6 +235,34 @@
       minimized: false,
       position: "bottomright"
     }).addTo(map);
+
+    // Cargar y agregar capa de parcelas al control y mapa
+    fetch('parcelas.geojson')
+      .then(response => response.json())
+      .then(data => {
+        const parcelasLayer = L.geoJSON(data, {
+          style: {
+            color: '#00FFFF',
+            weight: 2.65,
+            opacity: 1,
+            fillOpacity: 0
+          },
+          onEachFeature: function (feature, layer) {
+            const props = feature.properties;
+            let popupContent = `<strong>Parcela</strong>`;
+            if (props) {
+              popupContent += '<br>' + Object.entries(props)
+                .map(([key, val]) => `<b>${key}</b>: ${val}`)
+                .join('<br>');
+            }
+            layer.bindPopup(popupContent);
+          }
+        });
+
+        overlayMaps["🧾 Predios PpB"] = parcelasLayer;
+        layerControl.addOverlay(parcelasLayer, "🧾 Predios PpB");
+      })
+      .catch(error => console.error('Error al cargar parcelas:', error));
   </script>
 </body>
 </html>

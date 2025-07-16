@@ -24,19 +24,9 @@
       z-index: 1000;
     }
 
-    .legend {
-      position: absolute;
-      bottom: 10px;
-      left: 10px;
-    }
-
-    .legend img {
-      width: 150px;
-      display: none;
-    }
-    .legend img.active {
-      display: block;
-    }
+    .legend { position: absolute; bottom: 10px; left: 10px; }
+    .legend img { width: 150px; display: none; }
+    .legend img.active { display: block; }
 
     .legend-dynamic {
       position: absolute;
@@ -91,26 +81,41 @@
     .opacity-control label {
       font-size: 14px;
     }
+
+    .coordinates-control {
+      position: absolute;
+      bottom: 10px;
+      right: 200px;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-family: Arial, sans-serif;
+      z-index: 1000;
+      cursor: pointer;
+    }
+
+    .coordinates-control:hover {
+      background-color: #f0f0f0;
+    }
+
+    .copied {
+      background-color: #d4edda !important;
+      color: #155724;
+      border-color: #c3e6cb;
+    }
   </style>
 </head>
 <body>
   <div id="map"></div>
 
-  <!-- Leyenda estática -->
-  <div class="legend">
-    <img id="legend-rend" src="leyenda-rend.png" alt="Leyenda Rendimiento">
-  </div>
-
-  <!-- Leyenda NDVI con imagen -->
+  <!-- Leyendas -->
+  <div class="legend"><img id="legend-rend" src="leyenda-rend.png" alt="Leyenda Rendimiento"></div>
   <div id="dynamic-legend-ndvi" class="legend-dynamic">
     <div class="title">Índice de Vegetación NDVI (-1 a 1)</div>
     <img src="leyenda-ndvi.jpg" alt="Leyenda NDVI">
   </div>
-
-  <!-- Leyenda dinámica rendimiento -->
   <div id="dynamic-legend-rend" class="legend-dynamic"></div>
-
-  <!-- Leyenda dinámica parcelas -->
   <div id="legend-parcelas" class="legend-parcelas">
     <div class="title">Predios PpB</div>
     <div class="legend-item">
@@ -125,18 +130,21 @@
     <input type="range" id="opacityRange" min="0" max="1" step="0.1" value="0.8">
   </div>
 
+  <!-- Coordenadas -->
+  <div id="coordinates" class="coordinates-control">Lat: --, Lng: --</div>
+
   <script>
     const map = L.map('map').setView([25.8, -108.9], 12);
 
     // Capas base
-    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: 'OpenStreetMap' }).addTo(map);
-    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri World Imagery' });
-    const esriTerrain = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri Topo' });
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}');
+    const esriTerrain = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}');
 
     // Capas temáticas
-    const ndvi = L.tileLayer('./NDVI/{z}/{x}/{y}.png', { maxZoom: 18, attribution: 'NDVI', opacity: 0.8 });
-    const rendimiento = L.tileLayer('./RENDIMIENTO/{z}/{x}/{y}.png', { maxZoom: 18, attribution: 'Rendimiento', opacity: 0.8 });
-    ndvi.addTo(map); // NDVI activo por defecto
+    const ndvi = L.tileLayer('./NDVI/{z}/{x}/{y}.png', { maxZoom: 18, opacity: 0.8 });
+    const rendimiento = L.tileLayer('./RENDIMIENTO/{z}/{x}/{y}.png', { maxZoom: 18, opacity: 0.8 });
+    ndvi.addTo(map); // Activo por defecto
 
     const baseMaps = {
       "🗺️ Calles (OSM)": osm,
@@ -149,13 +157,10 @@
       "🌾 Rendimiento": rendimiento
     };
 
-    // Agregar control de capas (sin parcelas aún)
     const layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
-
-    // Mostrar leyenda NDVI al cargar
     document.getElementById('dynamic-legend-ndvi').style.display = 'block';
 
-    // Leyenda dinámica de rendimiento
+    // Leyenda dinámica rendimiento
     const rendPalette = ['#ffffcc', '#a1dab4', '#41b6c4', '#2c7fb8', '#253494'];
     const rendMin = 5;
     const rendMax = 10;
@@ -172,8 +177,6 @@
       container.appendChild(titleElem);
 
       for (let i = 0; i < numClasses; i++) {
-        const rangeMin = (minVal + i * step).toFixed(2);
-        const rangeMax = (minVal + (i + 1) * step).toFixed(2);
         const item = document.createElement('div');
         item.className = 'legend-item';
 
@@ -182,7 +185,7 @@
         colorBox.style.backgroundColor = palette[i];
 
         const label = document.createElement('span');
-        label.textContent = `${rangeMin} – ${rangeMax}`;
+        label.textContent = `${(minVal + i * step).toFixed(2)} – ${(minVal + (i + 1) * step).toFixed(2)}`;
 
         item.appendChild(colorBox);
         item.appendChild(label);
@@ -190,39 +193,30 @@
       }
     }
 
-    // Eventos de leyendas dinámicas
     map.on('overlayadd', function(e) {
-      if (e.name.includes('NDVI')) {
-        document.getElementById('dynamic-legend-ndvi').style.display = 'block';
-      }
+      if (e.name.includes('NDVI')) document.getElementById('dynamic-legend-ndvi').style.display = 'block';
       if (e.name.includes('Rendimiento')) {
         document.getElementById('dynamic-legend-rend').style.display = 'block';
         document.getElementById('legend-rend').classList.remove('active');
         createLegend('dynamic-legend-rend', 'Rendimiento estimado (ton/ha)', rendPalette, rendMin, rendMax);
       }
-      if (e.name.includes('Predios PpB')) {
-        document.getElementById('legend-parcelas').style.display = 'block';
-      }
+      if (e.name.includes('Predios PpB')) document.getElementById('legend-parcelas').style.display = 'block';
     });
 
     map.on('overlayremove', function(e) {
-      if (e.name.includes('NDVI')) {
-        document.getElementById('dynamic-legend-ndvi').style.display = 'none';
-      }
+      if (e.name.includes('NDVI')) document.getElementById('dynamic-legend-ndvi').style.display = 'none';
       if (e.name.includes('Rendimiento')) {
         document.getElementById('dynamic-legend-rend').style.display = 'none';
         document.getElementById('legend-rend').classList.add('active');
       }
-      if (e.name.includes('Predios PpB')) {
-        document.getElementById('legend-parcelas').style.display = 'none';
-      }
+      if (e.name.includes('Predios PpB')) document.getElementById('legend-parcelas').style.display = 'none';
     });
 
     // Control de opacidad
     const opacitySlider = document.getElementById('opacityRange');
     const opacityValue = document.getElementById('opacityValue');
 
-    opacitySlider.addEventListener('input', function () {
+    opacitySlider.addEventListener('input', () => {
       const value = parseFloat(opacitySlider.value);
       ndvi.setOpacity(value);
       rendimiento.setOpacity(value);
@@ -230,13 +224,13 @@
     });
 
     // MiniMap
-    const miniMap = new L.Control.MiniMap(osm, {
+    new L.Control.MiniMap(osm, {
       toggleDisplay: true,
       minimized: false,
       position: "bottomright"
     }).addTo(map);
 
-    // Cargar y agregar capa de parcelas al control y mapa
+    // Cargar capa de parcelas
     fetch('parcelas.geojson')
       .then(response => response.json())
       .then(data => {
@@ -252,7 +246,7 @@
             let popupContent = `<strong>Parcela</strong>`;
             if (props) {
               popupContent += '<br>' + Object.entries(props)
-                .map(([key, val]) => `<b>${key}</b>: ${val}`)
+                .map(([k, v]) => `<b>${k}</b>: ${v}`)
                 .join('<br>');
             }
             layer.bindPopup(popupContent);
@@ -262,7 +256,26 @@
         overlayMaps["🧾 Predios PpB"] = parcelasLayer;
         layerControl.addOverlay(parcelasLayer, "🧾 Predios PpB");
       })
-      .catch(error => console.error('Error al cargar parcelas:', error));
+      .catch(err => console.error('Error al cargar parcelas:', err));
+
+    // Coordenadas del cursor y copia
+    const coordDiv = document.getElementById('coordinates');
+
+    map.on('mousemove', function (e) {
+      const { lat, lng } = e.latlng;
+      coordDiv.textContent = `Lat: ${lat.toFixed(6)}, Lng: ${lng.toFixed(6)}`;
+    });
+
+    coordDiv.addEventListener('click', function () {
+      navigator.clipboard.writeText(coordDiv.textContent).then(() => {
+        coordDiv.classList.add('copied');
+        coordDiv.textContent = '¡Coordenadas copiadas!';
+        setTimeout(() => {
+          coordDiv.classList.remove('copied');
+          coordDiv.textContent = 'Lat: --, Lng: --';
+        }, 2000);
+      });
+    });
   </script>
 </body>
 </html>

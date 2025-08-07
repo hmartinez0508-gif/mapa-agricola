@@ -143,9 +143,9 @@
     const esriTerrain = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}');
 
     // Capas temáticas
-    const ndvi = L.tileLayer('./NDVI/{z}/{x}/{y}.png', { maxZoom: 18, opacity: 0.8 });
+    const ndvi = L.tileLayer('./NDVI/{z}/{x}/{y}.png', { maxZoom: 18, opacity: 0.8 }).addTo(map);
     const rendimiento = L.tileLayer('./RENDIMIENTO/{z}/{x}/{y}.png', { maxZoom: 18, opacity: 0.8 });
-    ndvi.addTo(map); // Activo por defecto
+    const imagenRGB = L.tileLayer('./RGB_Tiles/{z}/{x}/{y}.png', { maxZoom: 18, opacity: 0.8 });
 
     const baseMaps = {
       "🗺️ Calles (OSM)": osm,
@@ -155,7 +155,8 @@
 
     const overlayMaps = {
       "🌿 NDVI": ndvi,
-      "🌾 Rendimiento": rendimiento
+      "🌾 Rendimiento": rendimiento,
+      "🖼️ Imagen RGB": imagenRGB
     };
 
     const layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
@@ -221,6 +222,7 @@
       const value = parseFloat(opacitySlider.value);
       ndvi.setOpacity(value);
       rendimiento.setOpacity(value);
+      imagenRGB.setOpacity(value);
       opacityValue.textContent = value;
     });
 
